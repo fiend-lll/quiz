@@ -7,7 +7,7 @@ from telegram.ext import Updater, CommandHandler
 
 # Telegram Bot Ayarları
 BOT_TOKEN = "7990420796:AAEqVI1L0WiGL8l66L_njVYvgnaC2vNbL6Y"
-CHAT_ID = "-4804654305"
+CHAT_ID = "6736473228"
 TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument"
 
 # Dosya-nesne eşleştirmesi için global değişken
