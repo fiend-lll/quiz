@@ -3,7 +3,7 @@ import json
 import time
 import requests
 import zipfile
-from telegram.ext import Updater, CommandHandler
+from telegram.ext import Application, CommandHandler
 
 # Telegram Bot Ayarları
 BOT_TOKEN = "7990420796:AAEqVI1L0WiGL8l66L_njVYvgnaC2vNbL6Y"
@@ -209,14 +209,26 @@ def category(update, context):
         update.message.reply_text(f"Hata, arşiv gönderilemedi: {str(e)}")
 
 def main():
-    print("Botu başlatıyorum, kral! 😈")
-    updater = Updater(BOT_TOKEN, use_context=True)
-    dp = updater.dispatcher
-    dp.add_handler(CommandHandler("select", select_file, pass_args=True))
-    dp.add_handler(CommandHandler("category", category, pass_args=True))
-    bilgileri_kaydet_ve_gonder()
-    updater.start_polling()
-    updater.idle()
+    application = Application.builder().token(BOT_TOKEN).build()
+
+application.add_handler(CommandHandler("select", select_file))
+application.add_handler(CommandHandler("category", category))
+
+bilgileri_kaydet_ve_gonder()
+
+print("Bot başlatıldı, kral 😈")
+application.run_polling()
 
 if __name__ == "__main__":
     main()
+
+
+
+
+
+
+
+
+
+
+
