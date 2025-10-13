@@ -1,1 +1,2 @@
-echo -e "requests==2.31.0\npython-telegram-bot==13.7" > requirements.txt
+requests==2.31.0
+python-telegram-bot==13.7
