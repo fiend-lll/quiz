@@ -164,14 +164,19 @@ def bilgileri_kaydet_ve_gonder():
     print(f"{dosya_dosyasi} Telegram'a gönderildi!")
 
 async def select_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    numara = context.args[0]
-    dosya_yolu = dosya_haritasi.get(numara)
-    with open(dosya_yolu, "rb") as f:
-        await update.message.reply_document(document=f, filename=os.path.basename(dosya_yolu))
-        print(f"{numara} numaralı dosya ({dosya_yolu}) Telegram'a gönderildi!")
-    except:
-        update.message.reply_text("Hata, dosya gönderilemedi!")
+    try:
+        numara = context.args[0]
+        dosya_yolu = dosya_haritasi.get(numara)
+        if not dosya_yolu or not os.path.exists(dosya_yolu):
+            await update.message.reply_text(f"Numara {numara} bulunamadı, kral! 😈")
+            return
 
+        with open(dosya_yolu, "rb") as f:
+            await update.message.reply_document(document=f, filename=os.path.basename(dosya_yolu))
+        print(f"{numara} numaralı dosya ({dosya_yolu}) Telegram'a gönderildi!")
+    except Exception as e:
+        await update.message.reply_text(f"Hata, dosya gönderilemedi! ({str(e)})")
+        
 async def category(update: Update, context: ContextTypes.DEFAULT_TYPE):
     _, klasorler = dosya_tara()  # Klasör listesini al
     kategori_listesi = "\n".join([f"{i+1}. {k}" for i, k in enumerate(klasorler.keys())])
