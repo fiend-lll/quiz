@@ -3,6 +3,7 @@ import json
 import time
 import requests
 import zipfile
+from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
 # Telegram Bot Ayarları
