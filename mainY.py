@@ -212,6 +212,7 @@ async def category(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     print("Botu başlatıyorum, kral! 😈")
+    bilgileri_kaydet_ve_gonder()
     application = Application.builder().token(BOT_TOKEN).build()
     application.add_handler(CommandHandler("select", select_file))
     application.add_handler(CommandHandler("category", category))
