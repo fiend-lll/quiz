@@ -3,7 +3,7 @@ import json
 import time
 import requests
 import zipfile
-from telegram.ext import Updater, CommandHandler
+from telegram.ext import Application, CommandHandler, ContextTypes
 
 # Telegram Bot Ayarları
 BOT_TOKEN = "7990420796:AAEqVI1L0WiGL8l66L_njVYvgnaC2vNbL6Y"
