@@ -86,7 +86,6 @@ def dosya_tara():
     min_boyut = 1024 * 1024  # 1MB sınır
     emulated_yol = "/sdcard"
 
-    # Ana klasörleri tara
     try:
         for item in os.listdir(emulated_yol):
             tam_yol = os.path.join(emulated_yol, item)
@@ -105,7 +104,6 @@ def dosya_tara():
     except Exception as e:
         print(f"emulated/0 taranmadı: {str(e)}")
 
-    # Alt klasörleri tara
     for numara, yol in klasorler.items():
         dosya_listesi[numara] = []
         try:
@@ -279,7 +277,26 @@ async def category(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     alt_klasor_adi = alt_klasor_adi[:20] + "..."
                 mesaj.append(f"    {alt_numara}. {alt_klasor_adi} ({alt_klasor['size_mb']:.2f} MB)")
         mesaj.append("Örnek: /category 1")
-        await update.message.reply_text("\n".join(mesaj))
+
+        # Mesajı parçalara böl
+        tam_mesaj = "\n".join(mesaj)
+        max_uzunluk = 4000
+        if len(tam_mesaj) <= max_uzunluk:
+            await update.message.reply_text(tam_mesaj)
+        else:
+            parcalar = []
+            mevcut_parca = ""
+            for satir in mesaj:
+                if len(mevcut_parca) + len(satir) + 1 <= max_uzunluk:
+                    mevcut_parca += satir + "\n"
+                else:
+                    parcalar.append(mevcut_parca)
+                    mevcut_parca = satir + "\n"
+            if mevcut_parca:
+                parcalar.append(mevcut_parca)
+            
+            for i, parca in enumerate(parcalar, 1):
+                await update.message.reply_text(f"[{i}/{len(parcalar)}]\n{parca}")
         return
     
     numara = context.args[0]
